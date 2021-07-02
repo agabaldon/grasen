@@ -18,7 +18,7 @@ import requests
 import json
 
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
-API_KEY = 'kZNp8uFllb3MWKFfXqMhFCa2'
+API_KEY = 
 
 SEMANNOT_ENDPOINT = 'http://localhost:10800/SemanticAnnotator/translate'
 
