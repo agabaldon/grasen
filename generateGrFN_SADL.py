@@ -18,7 +18,7 @@ import requests
 import json
 
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
-API_KEY = 
+API_KEY = 'kZNp8uFllb3MWKFfXqMhFCa2'
 
 SEMANNOT_ENDPOINT = 'http://localhost:10800/SemanticAnnotator/translate'
 
@@ -29,11 +29,11 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
     except getopt.GetoptError:
-        print('encode.py -i <inputfile> -o <outputfile>')
+        print('generateGrFN_SADL.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('encode.py -i <inputfile> -o <outputfile>')
+            print('generateGrFN_SADL.py -i <inputfile> -o <outputfile>')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             inputfile = arg
@@ -64,20 +64,24 @@ def main(argv):
                'source_language' : 'c',
                'output_model' : 'GRFN'
     }
-        
+
+    # print('GrFN service payload: ', json.dumps(payload))
+
     response = requests.post(GrFN_API_ENDPOINT, headers = headers, data = json.dumps(payload))
+
+    # print('GrFN service request: ', response.request.body)
 
     print('GrFN service response: ', response.reason)
 
     if response.ok:
         grfn_json = json.loads(response.text)
 
+        # Our service takes the the top level 'grfn' value as input, so grab that
+        grfn_json = grfn_json['grfn']
+        
         # Save the GrFN json
         with open(outputfile + '.json', 'w') as grfnfile:
             json.dump(grfn_json, grfnfile)
-
-        # Our service takes the the top level 'grfn' value as input, so grab that
-        grfn_json = grfn_json['grfn']
 
         with open(outputfile + '.json', 'rb') as grfnfile:
             grfn_payload = {'file' : grfnfile}
