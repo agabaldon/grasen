@@ -18,9 +18,25 @@ import requests
 import json
 
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
+EXPTREE_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/extract/expr_trees'
 API_KEY = 
 
 SEMANNOT_ENDPOINT = 'http://localhost:10800/SemanticAnnotator/translate'
+
+def generateSemanticAnnotationModel(outputfile):
+    with open(outputfile + '.json', 'rb') as grfnfile:
+        grfn_payload = {'file' : grfnfile}
+
+        # Request sadl generation
+        responseSADL = requests.post(SEMANNOT_ENDPOINT, files = grfn_payload)
+        print('SemAnnotator service response: ', responseSADL.reason)
+
+        # If all is well, save the sadl
+        if responseSADL.ok:
+            with open(outputfile + '.sadl', 'w') as sadlfile:
+                sadlfile.write(responseSADL.text)
+
+
 
 def main(argv):
 
@@ -74,27 +90,35 @@ def main(argv):
     print('GrFN service response: ', response.reason)
 
     if response.ok:
-        grfn_json = json.loads(response.text)
+        grfn_json_orig = json.loads(response.text)
 
         # Our service takes the the top level 'grfn' value as input, so grab that
-        grfn_json = grfn_json['grfn']
+        grfn_json = grfn_json_orig['grfn']
         
         # Save the GrFN json
-        with open(outputfile + '.json', 'w') as grfnfile:
+        with open(outputfile + '_GrFN.json', 'w') as grfnfile:
             json.dump(grfn_json, grfnfile)
 
-        with open(outputfile + '.json', 'rb') as grfnfile:
-            grfn_payload = {'file' : grfnfile}
 
-            # Request sadl generation
-            responseSADL = requests.post(SEMANNOT_ENDPOINT, files = grfn_payload)
-            print('SemAnnotator service response: ', responseSADL.reason)
+        generateSemanticAnnotationModel(outputfile + '_GrFN')
 
-            # If all is well, save the sadl
-            if responseSADL.ok:
-                with open(outputfile + '.sadl', 'w') as sadlfile:
-                    sadlfile.write(responseSADL.text)
-            
+
+        # Next, generate ExpTree SADL
+
+        # Get exp tree json
+        responseExpTreeSADL = requests.post(EXPTREE_API_ENDPOINT, headers = headers, data = json.dumps(grfn_json_orig))
+
+        print('ExpTree service response: ', responseExpTreeSADL.reason)
+
+        if responseExpTreeSADL.ok:
+            exptree_json = json.loads(responseExpTreeSADL.text)
+
+        # Save the ExpTree json
+        with open(outputfile + '_ExpTree.json', 'w') as grfnfile:
+            json.dump(exptree_json, grfnfile)
+
+        generateSemanticAnnotationModel(outputfile + '_ExpTree')
+
 
 if __name__ == "__main__":
    main(sys.argv[1:])
