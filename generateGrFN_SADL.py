@@ -55,6 +55,7 @@ def main(argv):
             inputfile = arg
         elif opt in ("-o", "--ofile"):
             outputfile = arg
+            outputfile=outputfile.replace('.sadl','')
 
     with open(inputfile, 'r') as file:
         input_string = file.read()
@@ -120,5 +121,25 @@ def main(argv):
         generateSemanticAnnotationModel(outputfile + '_ExpTree')
 
 
+        with open(outputfile + '_combined.sadl', 'w') as combinedfile:
+            with open(outputfile + '_GrFN.sadl', 'r') as grfnfile:
+                for line in grfnfile.readlines():
+                    if 'uri' in line:
+                        newuri = line.replace('_GrFN','_combined')
+                        combinedfile.write(newuri)
+                    else:
+                        combinedfile.write(line)
+            with open(outputfile + '_ExpTree.sadl', 'r') as exptreefile:
+                for line in exptreefile.readlines():
+                    if 'uri' in line:
+                        continue
+                    elif '(note ' in line:
+                        continue
+                    elif 'import ' in line:
+                        continue
+                    else:
+                        combinedfile.write(line)
+        
+        
 if __name__ == "__main__":
    main(sys.argv[1:])
