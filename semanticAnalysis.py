@@ -22,9 +22,11 @@ import json
 
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
 EXPTREE_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/extract/expr_trees'
-API_KEY = 
+API_KEY = 'kZNp8uFllb3MWKFfXqMhFCa2'
 SM_MODEL_ENDPOINT = 'http://localhost:8080/SemanticAnalysis/generateModel'
 SM_QUERY_ENDPOINT = 'http://localhost:8080/SemanticAnalysis/queryService'
+#SM_MODEL_ENDPOINT = 'http://localhost:10800/SemanticAnalysis/generateModel'
+#SM_QUERY_ENDPOINT = 'http://localhost:10800/SemanticAnalysis/queryService'
 
 def performSemanticAnalysis(outputfile):
     with open(outputfile + '.json', 'rb') as grfnfile:
@@ -32,21 +34,30 @@ def performSemanticAnalysis(outputfile):
 
         # Request semantic analysis model
         responseSADL = requests.post(SM_MODEL_ENDPOINT, files = grfn_payload)
-        print('Semantic analysis model service response: ', responseSADL.reason)
+        print('Semantic analysis model service response: ', "OK" if responseSADL.ok else "Error"),
 
         # If all is well, save the file
         if responseSADL.ok:
+            print(' saving ' + outputfile + '.sadl')
             with open(outputfile + '.sadl', 'w') as sadlfile:
                 sadlfile.write(responseSADL.text)
 
         # Request semantic analysis query
         responseQuery = requests.post(SM_QUERY_ENDPOINT, files = grfn_payload)
-        print('Semantic analysis query service response: ', responseQuery.reason)
+        print('Semantic analysis query service response: ', "OK" if responseSADL.ok else "Error"),
 
         # If all is well, save the file
         if responseQuery.ok:
-            with open(outputfile + '.csv', 'w') as sadlfile:
-                sadlfile.write(responseQuery.text)
+            print(' saving ' + outputfile + '.csv')
+            with open(outputfile + '.csv', 'w') as csvfile:
+                csvfile.write(responseQuery.text)
+            #Output also into a file call SemAnnotation.csv for the Ghidra visualization
+            with open('SemAnnotation.csv', 'w') as csvfile:
+                csvfile.write(responseQuery.text)
+
+        else:
+            print('\nQuery service returned:')
+            print(responseQuery.text)
 
 def main(argv):
 
