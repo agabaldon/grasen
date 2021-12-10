@@ -7,11 +7,13 @@
 # Change the first line above to the location of your python
 #
 # Run: python semanticAnalysis.py -i filename.c
-# Output: filename_GrFN.json     - GrFN json
-#         filename_ExpTree.json  - Expression tree json
-#         filename.json          - GrFN Expression tree combined json
-#         filename.sadl          - Semantic analysis SADL model
-#         filename.csv           - Semantic analysis query results in CSV
+# Output: filename_GrFN.json         - GrFN json
+#         filename_ExpTree.json      - Expression tree json
+#         filename.json              - GrFN Expression tree combined json
+#         filename_Base.sadl         - Base SADL model (w/o having run the inference rules)
+#         filename_SemAnalysis.sadl  - Semantic analysis SADL model (results of inference)
+#         filename.csv               - Semantic analysis query results in CSV
+#         SemAnnotation.csv          - Semantic analysis query results in CSV for Ghidra vis.
 # --Alfredo
 #-------------------------------------------------------------
 
@@ -22,42 +24,61 @@ import json
 
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
 EXPTREE_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/extract/expr_trees'
-API_KEY = 'kZNp8uFllb3MWKFfXqMhFCa2'
-SM_MODEL_ENDPOINT = 'http://localhost:8080/SemanticAnalysis/generateModel'
-SM_QUERY_ENDPOINT = 'http://localhost:8080/SemanticAnalysis/queryService'
-#SM_MODEL_ENDPOINT = 'http://localhost:10800/SemanticAnalysis/generateModel'
-#SM_QUERY_ENDPOINT = 'http://localhost:10800/SemanticAnalysis/queryService'
+API_KEY = 
+PORT = '8080'
+#PORT = '10800'
+SM_BASE_MODEL_ENDPOINT = 'http://localhost:' + PORT + '/SemanticAnalysis/generateBaseModel'
+SM_MODEL_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/generateAnnotationsModel'
+SM_QUERY_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/queryService'
 
 def performSemanticAnalysis(outputfile):
     with open(outputfile + '.json', 'rb') as grfnfile:
         grfn_payload = {'file' : grfnfile}
 
-        # Request semantic analysis model
-        responseSADL = requests.post(SM_MODEL_ENDPOINT, files = grfn_payload)
-        print('Semantic analysis model service response: ', "OK" if responseSADL.ok else "Error"),
+        headers = {'accept': 'text/plain'}
+
+        # Request base model
+        responseBaseSADL = requests.post(SM_BASE_MODEL_ENDPOINT, files = grfn_payload, headers=headers)
+        print('Semantic analysis base model service response: ', "OK" if responseBaseSADL.ok else "Error"),
 
         # If all is well, save the file
-        if responseSADL.ok:
-            print(' saving ' + outputfile + '.sadl')
-            with open(outputfile + '.sadl', 'w') as sadlfile:
-                sadlfile.write(responseSADL.text)
+        if responseBaseSADL.ok:
+            print(' saving ' + outputfile + '_Base.sadl')
+            with open(outputfile + '_Base.sadl', 'w') as sadlfile:
+                sadlfile.write(responseBaseSADL.text)
 
+        # Reset the input file!!!
+        grfnfile.seek(0)
+                
         # Request semantic analysis query
-        responseQuery = requests.post(SM_QUERY_ENDPOINT, files = grfn_payload)
-        print('Semantic analysis query service response: ', "OK" if responseSADL.ok else "Error"),
+        responseQuery = requests.post(SM_QUERY_ENDPOINT, files = grfn_payload, headers=headers)
+        print('Semantic analysis query service response: ', "OK" if responseQuery.ok else "Error"),
 
         # If all is well, save the file
         if responseQuery.ok:
-            print(' saving ' + outputfile + '.csv')
+            print(' saving ' + outputfile + '.csv' + ' and ' + 'SemAnnotation.csv')
             with open(outputfile + '.csv', 'w') as csvfile:
                 csvfile.write(responseQuery.text)
             #Output also into a file call SemAnnotation.csv for the Ghidra visualization
             with open('SemAnnotation.csv', 'w') as csvfile:
                 csvfile.write(responseQuery.text)
-
         else:
             print('\nQuery service returned:')
             print(responseQuery.text)
+
+        # Reset the input file!!!
+        grfnfile.seek(0)
+
+        # Request semantic analysis model
+        responseAnnotSADL = requests.post(SM_MODEL_ENDPOINT, files = grfn_payload, headers=headers)
+        print('Semantic analysis annotations model service response: ', "OK" if responseAnnotSADL.ok else "Error"),
+
+        # If all is well, save the file
+        if responseAnnotSADL.ok:
+            print(' saving ' + outputfile + '_SemAnalysis.sadl')
+            with open(outputfile + '_SemAnalysis.sadl', 'w') as sadlfile:
+                sadlfile.write(responseAnnotSADL.text)
+
 
 def main(argv):
 
@@ -66,11 +87,11 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hi:",["ifile="])
     except getopt.GetoptError:
-        print('generateGrFN_SADL.py -i <inputfile>')
+        print('semanticAnalysis.py -i <inputfile>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('generateGrFN_SADL.py -i <inputfile>')
+            print('./semanticAnalysis.py -i <inputfile>')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             inputfile = arg
@@ -102,7 +123,7 @@ def main(argv):
                'output_model' : 'GRFN'
     }
 
-    # print('GrFN service payload: ', json.dumps(payload))
+    #print('GrFN service payload: ', json.dumps(payload))
 
     response = requests.post(GrFN_API_ENDPOINT, headers = headers, data = json.dumps(payload))
 
