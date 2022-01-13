@@ -32,6 +32,10 @@ SM_BASE_MODEL_ENDPOINT = 'http://localhost:' + PORT + '/SemanticAnalysis/generat
 SM_MODEL_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/generateAnnotationsModel'
 SM_QUERY_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/queryService'
 
+headers = {'apikey' : API_KEY,
+           'Content-Type' : 'application/json'}
+
+
 def performSemanticAnalysis(outputfile):
     with open(outputfile + '.json', 'rb') as grfnfile:
         grfn_payload = {'file' : grfnfile}
@@ -80,7 +84,7 @@ def performSemanticAnalysis(outputfile):
             with open(outputfile + '_SemAnalysis.sadl', 'w') as sadlfile:
                 sadlfile.write(responseAnnotSADL.text)
 
-def generateJsons(inputfile, outputfile):
+def generateGrFN(inputfile, outputfile):
     with open(inputfile, 'r') as file:
         input_string = file.read()
 
@@ -91,10 +95,6 @@ def generateJsons(inputfile, outputfile):
     
     #print(f"Encoded string: {base64_string}")
 
-    headers = {'apikey' : API_KEY,
-               'Content-Type' : 'application/json'
-    }
-    
     source_files = [{'file_name' : inputfile,
                      'file_type' : 'c',
                      'base64_encoding' : base64_string
@@ -117,19 +117,22 @@ def generateJsons(inputfile, outputfile):
     if response.ok:
         grfn_json_orig = json.loads(response.text)
 
-        # Our service takes the the top level 'grfn' value as input, so grab that
-        grfn_json = grfn_json_orig['grfn']
-        
         # Save the GrFN json
         with open(outputfile + '_GrFN.json', 'w') as grfnfile:
             #json.dump(grfn_json, grfnfile)
-            json.dump(grfn_json_orig, grfnfile)
+            json.dump(grfn_json_orig['grfn'], grfnfile)
 
 
         #generateSemanticAnnotationModel(outputfile + '_GrFN')
 
+        return grfn_json_orig
 
-        # Next, generate ExpTree SADL
+    else:
+        print('GrFN generation failed')
+
+
+def generateExprTree(grfn_json_orig, outputfile):
+        # Generate ExpTree SADL
 
         # Get exp tree json
         responseExpTreeSADL = requests.post(EXPTREE_API_ENDPOINT, headers = headers, data = json.dumps(grfn_json_orig))
@@ -139,53 +142,43 @@ def generateJsons(inputfile, outputfile):
         if responseExpTreeSADL.ok:
             exptree_json = json.loads(responseExpTreeSADL.text)
 
-        # Save the ExpTree json
-        with open(outputfile + '_ExpTree.json', 'w') as grfnfile:
-            json.dump(exptree_json, grfnfile)
+            # Save the ExpTree json
+            with open(outputfile + '_ExpTree.json', 'w') as grfnfile:
+                json.dump(exptree_json, grfnfile)
 
-    return grfn_json, exptree_json
+            return exptree_json
+        else:
+            print('Expression Tree generation failed')
 
-def main(inputFiles):
-
-    """
-    print(len(inputFiles))
-    for f in inputFiles:
-        print(f)
-    return
-    """
-    #print(inputFiles[0].endswith('.c'))
+def main(inputFile):
 
     cFile = ''
-    json1 = json2 = ''
+    grfnFile = ''
     
-    if(inputFiles[0].endswith('.c')):
-        if(len(inputFiles) < 2):
-            cFile = inputFiles[0]
-        else:
-            print('Only 1 c file should be provided')
-            return
-    elif(len(inputFiles) == 2):
-        if(inputFiles[0].endswith('.json') and inputFiles[1].endswith('.json')):
-            json1, json2 = inputFiles 
-        else:
-            print('json input filenames must have extension .json')
-            return
+    if(inputFile.endswith('.c')):
+        cFile = inputFile
+    elif(inputFile.endswith('.json')):
+        grfnFile = inputFile 
     else:
-        print('script arguments should be 1 c file or 2 json files')
+        print('The input file should be be .c file or a .json file')
         return
 
-    outputfile=inputFiles[0].replace('.c','').replace('.json','')
+    outputfile=inputFile.replace('.c','').replace('.json','')
 
 
     if(cFile != ''):
-        grfn_json, exptree_json = generateJsons(cFile, outputfile)
+        grfn_json_orig = generateGrFN(cFile, outputfile)
+        # Our service takes the the top level 'grfn' value as input, so grab that
+        grfn_json = grfn_json_orig['grfn']
     else:
-        with open(json1, 'r') as j1:
-            grfn_json = json.load(j1)
+        with open(grfnFile, 'r') as gf:
+            grfn_json_orig = json.load(gf)
+        if('grfn' in grfn_json_orig):
+            grfn_json = grfn_json_orig['grfn']
+        else:
+            grfn_json = grfn_json_orig
             
-        with open(json2, 'r') as j2:
-            exptree_json = json.load(j2)
-    
+    exptree_json = generateExprTree(grfn_json_orig, outputfile)
             
     combined_json = {'grfn': grfn_json,
                      'expTreeArray' : exptree_json}
@@ -199,7 +192,7 @@ def main(inputFiles):
 
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
-   parser.add_argument('-i', '--inputFiles', help='a C source file or a pair of Json files', type=str, nargs='+')
+   parser.add_argument('-i', '--inputFile', help='a C source file or a GrFN json file', type=str, required=True)
    args = parser.parse_args()
-   main(args.inputFiles)
+   main(args.inputFile)
 
