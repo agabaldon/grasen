@@ -7,10 +7,10 @@
 # Change the first line above to the location of your python
 #
 # Run:  python semanticAnalysis.py -i filename.c
-#       python semanticAnalysis.py -i grfn.json expTree.json
+#       python semanticAnalysis.py -i grfn.json
 # Output: filename_GrFN.json         - GrFN json (only if the input was a c file)
-#         filename_ExpTree.json      - Expression tree json (only if the input was a c file)
-#         filename.json              - GrFN Expression tree combined json (only if the input was a c file)
+#         filename_ExpTree.json      - Expression tree json 
+#         filename.json              - GrFN Expression tree combined json
 #         filename_Base.sadl         - Base SADL model (w/o having run the inference rules)
 #         filename_SemAnalysis.sadl  - Semantic analysis SADL model (results of inference)
 #         filename.csv               - Semantic analysis query results in CSV
@@ -168,15 +168,15 @@ def main(inputFile):
 
     if(cFile != ''):
         grfn_json_orig = generateGrFN(cFile, outputfile)
-        # Our service takes the the top level 'grfn' value as input, so grab that
-        grfn_json = grfn_json_orig['grfn']
     else:
         with open(grfnFile, 'r') as gf:
             grfn_json_orig = json.load(gf)
-        if('grfn' in grfn_json_orig):
-            grfn_json = grfn_json_orig['grfn']
-        else:
-            grfn_json = grfn_json_orig
+
+    # Our service takes the the top level 'grfn' value as input, so grab that
+    if('grfn' in grfn_json_orig):
+        grfn_json = grfn_json_orig['grfn']
+    else:
+        grfn_json = grfn_json_orig
             
     exptree_json = generateExprTree(grfn_json_orig, outputfile)
             
