@@ -25,7 +25,7 @@ import json
 
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
 EXPTREE_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/extract/expr_trees'
-API_KEY = 'kZNp8uFllb3MWKFfXqMhFCa2'
+API_KEY = 
 PORT = '8080'
 #PORT = '10800'
 SM_BASE_MODEL_ENDPOINT = 'http://localhost:' + PORT + '/SemanticAnalysis/generateBaseModel'
