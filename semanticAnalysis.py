@@ -1,7 +1,7 @@
 #!/Users/alfredo/miniconda3/envs/py3.7/bin/python
 
 #-------------------------------------------------------------
-# Takes a c file or two json files and performs Semantic analysis.
+# Takes a c file or a json file and performs Semantic analysis.
 # Inovkes UofAZ GrFN service and Semantic Analysis service
 #
 # Change the first line above to the location of your python
@@ -26,8 +26,8 @@ import json
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
 EXPTREE_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/extract/expr_trees'
 API_KEY = 
-PORT = '8080'
-#PORT = '10800'
+#PORT = '8080'
+PORT = '10800'
 SM_BASE_MODEL_ENDPOINT = 'http://localhost:' + PORT + '/SemanticAnalysis/generateBaseModel'
 SM_MODEL_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/generateAnnotationsModel'
 SM_QUERY_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/queryService'
