@@ -10,7 +10,7 @@
 #       python semanticAnalysis.py -i grfn.json
 # Output: filename_GrFN.json         - GrFN json (only if the input was a c file)
 #         filename_ExpTree.json      - Expression tree json 
-#         filename.json              - GrFN Expression tree combined json
+#         filename_combined.json     - GrFN & Expression tree combined json
 #         filename_Base.sadl         - Base SADL model (w/o having run the inference rules)
 #         filename_SemAnalysis.sadl  - Semantic analysis SADL model (results of inference)
 #         filename.csv               - Semantic analysis query results in CSV
@@ -26,8 +26,8 @@ import json
 GrFN_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/translate'
 EXPTREE_API_ENDPOINT = 'http://hopper.sista.arizona.edu/api/v1/extract/expr_trees'
 API_KEY = 
-#PORT = '8080'
-PORT = '10800'
+PORT = '8080'
+#PORT = '10800'
 SM_BASE_MODEL_ENDPOINT = 'http://localhost:' + PORT + '/SemanticAnalysis/generateBaseModel'
 SM_MODEL_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/generateAnnotationsModel'
 SM_QUERY_ENDPOINT =      'http://localhost:' + PORT + '/SemanticAnalysis/queryService'
@@ -37,7 +37,7 @@ headers = {'apikey' : API_KEY,
 
 
 def performSemanticAnalysis(outputfile):
-    with open(outputfile + '.json', 'rb') as grfnfile:
+    with open(outputfile + '_combined.json', 'rb') as grfnfile:
         grfn_payload = {'file' : grfnfile}
 
         headers = {'accept': 'text/plain'}
@@ -46,43 +46,44 @@ def performSemanticAnalysis(outputfile):
         responseBaseSADL = requests.post(SM_BASE_MODEL_ENDPOINT, files = grfn_payload, headers=headers)
         print('Semantic analysis base model service response: ', "OK" if responseBaseSADL.ok else "Error"),
 
-        # If all is well, save the file
+        # If all is well, save the file and continue
         if responseBaseSADL.ok:
             print(' saving ' + outputfile + '_Base.sadl')
             with open(outputfile + '_Base.sadl', 'w') as sadlfile:
                 sadlfile.write(responseBaseSADL.text)
 
-        # Reset the input file!!!
-        grfnfile.seek(0)
-                
-        # Request semantic analysis query
-        responseQuery = requests.post(SM_QUERY_ENDPOINT, files = grfn_payload, headers=headers)
-        print('Semantic analysis query service response: ', "OK" if responseQuery.ok else "Error"),
+            
+            # Reset the input file!!!
+            grfnfile.seek(0)
+        
+            # Request semantic analysis query
+            responseQuery = requests.post(SM_QUERY_ENDPOINT, files = grfn_payload, headers=headers)
+            print('Semantic analysis query service response: ', "OK" if responseQuery.ok else "Error"),
+            if not responseQuery.ok:
+                print(responseQuery.text)
+            
+            # If all is well, save the file and continue
+            if responseQuery.ok:
+                print(' saving ' + outputfile + '.csv' + ' and ' + 'SemAnnotation.csv')
+                with open(outputfile + '.csv', 'w') as csvfile:
+                    csvfile.write(responseQuery.text)
+                    #Output also into a file call SemAnnotation.csv for the Ghidra visualization
+                    with open('SemAnnotation.csv', 'w') as csvfile:
+                        csvfile.write(responseQuery.text)
 
-        # If all is well, save the file
-        if responseQuery.ok:
-            print(' saving ' + outputfile + '.csv' + ' and ' + 'SemAnnotation.csv')
-            with open(outputfile + '.csv', 'w') as csvfile:
-                csvfile.write(responseQuery.text)
-            #Output also into a file call SemAnnotation.csv for the Ghidra visualization
-            with open('SemAnnotation.csv', 'w') as csvfile:
-                csvfile.write(responseQuery.text)
-        else:
-            print('\nQuery service returned:')
-            print(responseQuery.text)
+                # Reset the input file!!!
+                grfnfile.seek(0)
 
-        # Reset the input file!!!
-        grfnfile.seek(0)
+                # Request semantic analysis model
+                responseAnnotSADL = requests.post(SM_MODEL_ENDPOINT, files = grfn_payload, headers=headers)
+                print('Semantic analysis annotations model service response: ', "OK" if responseAnnotSADL.ok else "Error"),
 
-        # Request semantic analysis model
-        responseAnnotSADL = requests.post(SM_MODEL_ENDPOINT, files = grfn_payload, headers=headers)
-        print('Semantic analysis annotations model service response: ', "OK" if responseAnnotSADL.ok else "Error"),
-
-        # If all is well, save the file
-        if responseAnnotSADL.ok:
-            print(' saving ' + outputfile + '_SemAnalysis.sadl')
-            with open(outputfile + '_SemAnalysis.sadl', 'w') as sadlfile:
-                sadlfile.write(responseAnnotSADL.text)
+                # If all is well, save the file
+                if responseAnnotSADL.ok:
+                    print(' saving ' + outputfile + '_SemAnalysis.sadl')
+                    with open(outputfile + '_SemAnalysis.sadl', 'w') as sadlfile:
+                        sadlfile.write(responseAnnotSADL.text)
+            
 
 def generateGrFN(inputfile, outputfile):
     with open(inputfile, 'r') as file:
@@ -119,9 +120,7 @@ def generateGrFN(inputfile, outputfile):
 
         # Save the GrFN json
         with open(outputfile + '_GrFN.json', 'w') as grfnfile:
-            #json.dump(grfn_json, grfnfile)
             json.dump(grfn_json_orig['grfn'], grfnfile)
-
 
         #generateSemanticAnnotationModel(outputfile + '_GrFN')
 
@@ -129,18 +128,18 @@ def generateGrFN(inputfile, outputfile):
 
     else:
         print('GrFN generation failed')
-
+        return None
 
 def generateExprTree(grfn_json_orig, outputfile):
         # Generate ExpTree SADL
 
         # Get exp tree json
-        responseExpTreeSADL = requests.post(EXPTREE_API_ENDPOINT, headers = headers, data = json.dumps(grfn_json_orig))
+        responseExpTree = requests.post(EXPTREE_API_ENDPOINT, headers = headers, data = json.dumps(grfn_json_orig))
 
-        print('ExpTree service response: ', responseExpTreeSADL.reason)
+        print('ExpTree service response: ', responseExpTree.reason)
 
-        if responseExpTreeSADL.ok:
-            exptree_json = json.loads(responseExpTreeSADL.text)
+        if responseExpTree.ok:
+            exptree_json = json.loads(responseExpTree.text)
 
             # Save the ExpTree json
             with open(outputfile + '_ExpTree.json', 'w') as grfnfile:
@@ -149,6 +148,7 @@ def generateExprTree(grfn_json_orig, outputfile):
             return exptree_json
         else:
             print('Expression Tree generation failed')
+            print(responseExpTree.text)
 
 def main(inputFile):
 
@@ -172,23 +172,36 @@ def main(inputFile):
         with open(grfnFile, 'r') as gf:
             grfn_json_orig = json.load(gf)
 
-    # Our service takes the the top level 'grfn' value as input, so grab that
+        if 'grfn' not in grfn_json_orig:
+            grfn_json_orig = {'grfn' : grfn_json_orig}
+        
+            
+    # Our service takes the top level 'grfn' value as input, so grab that
     if('grfn' in grfn_json_orig):
         grfn_json = grfn_json_orig['grfn']
     else:
         grfn_json = grfn_json_orig
-            
-    exptree_json = generateExprTree(grfn_json_orig, outputfile)
-            
-    combined_json = {'grfn': grfn_json,
-                     'expTreeArray' : exptree_json}
 
-    # Save the combined json
-    with open(outputfile + '.json', 'w') as grfnfile:
-        json.dump(combined_json, grfnfile)
-            
-    performSemanticAnalysis(outputfile)
+    if(grfn_json != None):
 
+        # If grfn input is a combined json, use as is,
+        # otherwise generate Exp Tree.
+        if('expTreeArray' in grfn_json_orig):
+            combined_json = grfn_json_orig
+        else:
+            exptree_json = generateExprTree(grfn_json_orig, outputfile) #exp tree service expects 'grfn' key, so use json_orig
+            
+            combined_json = {'grfn': grfn_json,
+                         'expTreeArray' : exptree_json}
+
+            # Save the combined json
+        with open(outputfile + '_combined.json', 'w') as grfnfile:
+            json.dump(combined_json, grfnfile)
+
+        performSemanticAnalysis(outputfile)
+
+    else:
+        print('GrFN generation failed')
 
 if __name__ == "__main__":
    parser = argparse.ArgumentParser()
